@@ -15,7 +15,7 @@ No. It changes them, a lot, but they stay meaningful.
 | wary vs greedy | Standard | 0.66 | 0.99 |
 | wary vs greedy | Back row | 0.57 | 0.97 |
 | wary vs greedy | Battleship (guarded) | 0.60 | 0.94 |
-| Solomon vs Vercingetorix (240 games each) | Standard | 0.58 | 0.95 |
+| Solomon vs Vercingetorix (120 games) | Standard | 0.58 | 0.95 |
 
 Without fog the stronger bot almost never loses. With fog it wins about 6 or 7 games in 10. Each game carries more luck, so you need more games to tell two players apart, but the gap is clearly there with a few thousand games. For ratings, this means fog games should move ratings less per game, or take more games to settle.
 
