@@ -27,6 +27,7 @@ A run cycles through every pairing of `-bots` (each as White and as Black), ever
 - `-bots ramesses,solomon` (the default) picks who plays. `solomon` plays about 10 games a second per core; the simulator's own bots play hundreds.
 - `-fog on|off|both` (default both).
 - `-guarded` makes Battleship setups careful: the king on its back two rows with every line out of it blocked by its own pieces. Otherwise Battleship and Back row setups are random, and random Battleship setups hand out a lot of first-move wins.
+- `-sense attackers` also plays each fog game with a rule idea: the king sees every enemy piece attacking it.
 - `-mods checkmate,jumpKing,backPawns,hill` plays the Mods page rules.
 - `-moves=false` leaves the moves out, for very long runs: a game with moves is about 500 bytes, so ten million games is about 5 GB.
 
