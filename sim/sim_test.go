@@ -99,7 +99,7 @@ func TestRandomSetup(t *testing.T) {
 // A fogged view shows nothing the player's pieces can't see.
 func TestViewHidesFog(t *testing.T) {
 	g := engine.NewGameWithRules(engine.Rules{KingCapture: true})
-	v := viewOf(g, engine.White, true, engine.Rules{KingCapture: true})
+	v := viewOf(g, engine.White, true, "", engine.Rules{KingCapture: true})
 	for i, pc := range v.Board {
 		if pc.Is(engine.Black) {
 			t.Fatalf("white sees a black piece on %s at the start", engine.Square(i))
@@ -107,5 +107,22 @@ func TestViewHidesFog(t *testing.T) {
 	}
 	if len(v.Legal) != 20 {
 		t.Fatalf("want 20 legal moves, got %d", len(v.Legal))
+	}
+}
+
+// With the attackers sense, a hidden piece attacking the king shows; one
+// that doesn't attack it stays hidden.
+func TestSenseAttackers(t *testing.T) {
+	// The black queen on a5 attacks the white king on e1 through the empty
+	// diagonal; the black rook on h8 attacks nothing of White's.
+	pos, _ := engine.ParseFEN("4k2r/8/8/q7/8/8/8/4K3 w - - 0 1")
+	a5, _ := engine.ParseSquare("a5")
+	h8, _ := engine.ParseSquare("h8")
+	if plain := vision(&pos, engine.White, ""); plain[a5] {
+		t.Fatal("the white king alone shouldn't see a5")
+	}
+	seen := vision(&pos, engine.White, "attackers")
+	if !seen[a5] || seen[h8] {
+		t.Fatalf("attackers sense: a5 seen %v (want true), h8 seen %v (want false)", seen[a5], seen[h8])
 	}
 }

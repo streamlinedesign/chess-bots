@@ -19,6 +19,8 @@ type Config struct {
 	// player would; otherwise pieces go anywhere at random.
 	Guarded bool
 	Fog     bool
+	// Sense is a rule idea that shows more through the fog (see vision).
+	Sense string
 	// Rules default to Eat the King (KingCapture). Turning KingCapture off
 	// plays with check and checkmate, as the mods page can.
 	Rules engine.Rules
@@ -39,6 +41,7 @@ type Record struct {
 	// Guarded is a Battleship game with guarded setups (see Config).
 	Guarded bool   `json:"guarded,omitempty"`
 	Fog     bool   `json:"fog"`
+	Sense   string `json:"sense,omitempty"`
 	Rules   string `json:"rules"`
 	Result  string `json:"result"` // "1-0", "0-1" or "1/2-1/2"
 	Method  string `json:"method"`
@@ -106,7 +109,7 @@ func Play(c Config) (Record, error) {
 		return Record{}, err
 	}
 	rec := Record{
-		Seed: c.Seed, White: c.White, Black: c.Black, Mode: modeName(c.Mode), Guarded: c.Guarded && c.Mode == "battleship", Fog: c.Fog,
+		Seed: c.Seed, White: c.White, Black: c.Black, Mode: modeName(c.Mode), Guarded: c.Guarded && c.Mode == "battleship", Fog: c.Fog, Sense: c.Sense,
 		Rules: RulesName(c.Rules), FirstContact: -1, FirstCapture: -1,
 	}
 	if fen != engine.StartFEN {
@@ -122,7 +125,7 @@ func Play(c Config) (Record, error) {
 	var kingSteps [2]int
 	for !g.Over() && len(g.History()) < maxPlies {
 		side := g.Turn()
-		v := viewOf(g, side, c.Fog, c.Rules)
+		v := viewOf(g, side, c.Fog, c.Sense, c.Rules)
 		n := 0
 		for i, ok := range v.Seen {
 			if ok {

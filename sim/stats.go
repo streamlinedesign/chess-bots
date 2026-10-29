@@ -31,6 +31,9 @@ func groupKey(r *Record) string {
 	if !r.Fog {
 		fog = "nofog"
 	}
+	if r.Sense != "" {
+		fog += "+" + r.Sense
+	}
 	mode := r.Mode
 	if r.Guarded {
 		mode += "(guarded)"
@@ -50,6 +53,9 @@ func (s *Stats) Add(r *Record) {
 		mode := r.Mode
 		if r.Guarded {
 			mode += " (guarded setups)"
+		}
+		if r.Sense != "" {
+			mode += ", king sees " + r.Sense
 		}
 		g = &Group{Key: k, Mode: mode, Rules: r.Rules, White: r.White, Bk: r.Black, Fog: r.Fog,
 			Methods: map[string]int{}, Killers: map[string]int{}}

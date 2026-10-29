@@ -54,3 +54,24 @@ That's far more than needed for most questions: a few thousand games per conditi
 3. **Setup study.** Since Battleship setups decide so much, have bots try many setups and record which arrangements win: where the king should sit, whether pawns in front matter.
 4. **Ratings under fog.** With per-game luck this high, check how many games Glicko-2 needs to rank bots of known strength in the right order, and whether fog games should count for less.
 5. **The mods.** Run checkmate rules, Jump King, backward pawns and King of the Hill (`-mods`) with fog to see which of them make the game more or less decisive.
+
+## Idea tested: the king sees its attackers
+
+Rule: under fog, a player also sees every enemy piece that attacks their king, wherever it is (`-sense attackers`). 250,200 more games: the simulator's bots (243,000) and Vercingetorix vs Ramesses II (7,200), guarded Battleship setups, each condition with plain fog, fog plus the sense, and no fog.
+
+| Standard | Plain fog | Fog + king sense | No fog |
+|---|---|---|---|
+| wary vs greedy (better bot's score) | 0.65 | 0.73 | 0.98 |
+| Ramesses vs Vercingetorix | 0.63 | 0.63 | 0.98 |
+| Median length (plies) | 30 | 44 | 60 |
+| Draws | 1% | 3% | 22% |
+| Kings eaten by the queen (site bots) | 30% | 15% | 56% |
+| Times the losing king moved (site bots) | 3.3 | 5.8 | 10.9 |
+
+- **Nobody dies out of nowhere any more.** Every king that's eaten was in sight of its killer on its owner's last turn: the king saw it and couldn't get away. Fog stays, but the instant loss to a piece from the dark is gone.
+- **Games get about 40% longer and kings run.** Kings move almost twice as often before they fall. The game drifts towards hunting and trapping a king, closer to checkmate, but still far from the long draws of no fog (3% draws, not 22%).
+- **The queen loses her edge.** Long-range sniping no longer works because the shot is seen a turn early, so queen kills halve. This answers the "queen is troubling" worry directly.
+- **Skill counts a bit more, not a lot.** The simulator's careful bot gains (0.65 → 0.73 in Standard, 0.59 → 0.68 in Battleship); the site bots show no change beyond noise (±0.05 at 400 games). It doesn't make the game a coin flip or a solved one.
+- **White's edge doesn't move.** Standard stays even; Battleship stays about 0.56 for White.
+
+What it costs in play: attacking the king now gives your piece away, so the sneak attack stops being the main weapon and forks, double attacks and boxing the king in take over. If that feels too strong, middle grounds to test next: show only the direction of the threat, show it only for pieces within two squares, or keep the current red ring (danger without the location) but also for unseen attackers.

@@ -46,11 +46,11 @@ var Bots = map[string]BotMaker{
 }
 
 // viewOf builds what color c knows in pos.
-func viewOf(g *engine.Game, c engine.Color, fog bool, rules engine.Rules) *View {
+func viewOf(g *engine.Game, c engine.Color, fog bool, sense string, rules engine.Rules) *View {
 	pos := g.Position()
 	v := &View{Me: c, Ply: len(g.History()), Fog: fog, Legal: g.LegalMoves(), Rules: rules, pos: pos}
 	if fog {
-		v.Seen = pos.Vision(c)
+		v.Seen = vision(&pos, c, sense)
 	} else {
 		for i := range v.Seen {
 			v.Seen[i] = true
@@ -67,6 +67,32 @@ func viewOf(g *engine.Game, c engine.Color, fog bool, rules engine.Rules) *View 
 	}
 	v.Castling = pos.Castling & mine
 	return v
+}
+
+// Senses are rule ideas that let a player see more through the fog.
+var Senses = []string{"", "attackers"}
+
+// vision is what color c sees under fog, with sense:
+//   - "": what its pieces see, as on the site.
+//   - "attackers": also every enemy piece that attacks c's king, wherever it is.
+func vision(pos *engine.Position, c engine.Color, sense string) [64]bool {
+	seen := pos.Vision(c)
+	if sense == "attackers" {
+		if king := pos.KingSquare(c); king != engine.NoSquare {
+			for sq, pc := range pos.Board {
+				if !pc.Is(c.Other()) || seen[sq] {
+					continue
+				}
+				for _, m := range pos.PieceMoves(engine.Square(sq)) {
+					if m.To == king {
+						seen[sq] = true
+						break
+					}
+				}
+			}
+		}
+	}
+	return seen
 }
 
 // value is a piece's worth in pawns. The king is worth the game.
