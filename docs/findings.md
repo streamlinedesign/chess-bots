@@ -105,3 +105,18 @@ Back row and guarded Battleship look the same. White's edge doesn't move in any 
 - **One look is safe but flat.** Knowing the rule is worth nothing (0.49), so nobody plays for it; bots step in and out, and draws double from the back-and-forth repetition. It adds luck more than strategy.
 
 **Recommendation: pawns only.** If it feels too strong in real games, the next tweak to test is making the opponent see the holding pawn's square (it's marked anyway) or ending the vision while the pawn is attacked.
+
+## The site's rules from 0.2.0
+
+fow-chess now plays centre vision for any piece in every game, and tells a player their king is attacked even when the attacker is hidden (not from where). The simulator plays the same by default (`-mods noCenter` turns centre vision off), and every bot's view carries the warning; `hunter` and `wary` move the king when it comes from the fog. 32,000 games, Standard, `wary` and `greedy`:
+
+| | Site rules | Without centre vision |
+|---|---|---|
+| wary vs greedy (better bot's score) | 0.88 | 0.71 |
+| White's score (wary mirror) | 0.51 | 0.49 |
+| Median length (plies) | 61 | 58 |
+| Draws | 2% | 12% |
+| Kings eaten by a piece the loser couldn't see | 70% | 82% |
+| Times the losing king moved | 5.7 | 4.4 |
+
+The hidden-attack warning gives kings a chance to run (they move more), and centre vision makes the better bot win more and draws rarer, as in the earlier test.

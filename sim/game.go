@@ -95,6 +95,9 @@ func RulesName(r engine.Rules) string {
 	if r.Hill {
 		parts = append(parts, "hill")
 	}
+	if r.CenterVision == engine.CenterOff {
+		parts = append(parts, "noCenter")
+	}
 	return strings.Join(parts, "+")
 }
 

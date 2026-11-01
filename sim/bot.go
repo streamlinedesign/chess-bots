@@ -23,6 +23,9 @@ type View struct {
 	// Castling is the player's own castling rights (the opponent's are unknown).
 	Castling uint8
 	Rules    engine.Rules
+	// Danger is set when any enemy piece attacks Me's king, seen or not: the
+	// site tells a player that much, never where the attacker is.
+	Danger bool
 	// Sense is the rule idea in play (see vision), so a bot can play to it.
 	Sense string
 	// pos is the real position, for bots such as the site's own (package bots)
@@ -71,6 +74,9 @@ func viewOf(g *engine.Game, c engine.Color, fog bool, sense string, rules engine
 		mine = engine.CastleBK | engine.CastleBQ
 	}
 	v.Castling = pos.Castling & mine
+	if k := pos.KingSquare(c); k != engine.NoSquare {
+		v.Danger = pos.Attacked(k, c.Other())
+	}
 	return v
 }
 
@@ -198,6 +204,7 @@ func (b *greedyBot) Move(v *View) engine.Move {
 func beliefPosition(v *View, ghosts *[64]engine.Piece) engine.Position {
 	p := engine.Position{Board: v.Board, Turn: v.Me, Castling: v.Castling, EP: engine.NoSquare, Fullmove: 1}
 	p.KingCapture, p.JumpKing, p.BackPawns, p.Hill = v.Rules.KingCapture, v.Rules.JumpKing, v.Rules.BackPawns, v.Rules.Hill
+	p.CenterVision = v.Rules.CenterVision
 	if ghosts != nil {
 		for i, g := range ghosts {
 			if g != engine.NoPiece && !v.Seen[i] {

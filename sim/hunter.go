@@ -93,6 +93,12 @@ func (h *hunter) Move(v *View) engine.Move {
 	}
 	pos := beliefPosition(v, &h.ghosts)
 	target := h.target(v)
+	// Told the king is attacked by nothing it knows of: the attacker is in
+	// the fog, so a move that leaves the king where it is likely loses it.
+	hiddenThreat := false
+	if king := pos.KingSquare(v.Me); v.Danger && king != engine.NoSquare {
+		hiddenThreat = !pos.Attacked(king, v.Me.Other())
+	}
 	best, bestScore := v.Legal[0], -1<<62
 	for _, m := range v.Legal {
 		victim := v.Board[m.To]
@@ -101,6 +107,9 @@ func (h *hunter) Move(v *View) engine.Move {
 		}
 		after := pos.Apply(m)
 		score := h.worstReply(&after, v.Me) + h.outlook(&after, v.Me, target, m.To)*10 + h.rng.IntN(noise)
+		if hiddenThreat && v.Board[m.From].Kind() != engine.King {
+			score -= kingValue / 2
+		}
 		if score > bestScore {
 			best, bestScore = m, score
 		}
