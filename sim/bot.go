@@ -23,6 +23,8 @@ type View struct {
 	// Castling is the player's own castling rights (the opponent's are unknown).
 	Castling uint8
 	Rules    engine.Rules
+	// Sense is the rule idea in play (see vision), so a bot can play to it.
+	Sense string
 	// pos is the real position, for bots such as the site's own (package bots)
 	// that are handed it with the seen mask and hide the fog themselves.
 	pos engine.Position
@@ -43,14 +45,17 @@ var Bots = map[string]BotMaker{
 	"greedy": func(rng *rand.Rand) Bot { return &greedyBot{rng: rng} },
 	"hunter": func(rng *rand.Rand) Bot { return &hunter{rng: rng} },
 	"wary":   func(rng *rand.Rand) Bot { return &hunter{rng: rng, wary: true} },
+	// unaware is wary that doesn't know the sense in play and so never plays
+	// for it, though it still sees what the sense shows it.
+	"unaware": func(rng *rand.Rand) Bot { return &hunter{rng: rng, wary: true, unaware: true} },
 }
 
 // viewOf builds what color c knows in pos.
 func viewOf(g *engine.Game, c engine.Color, fog bool, sense string, rules engine.Rules) *View {
 	pos := g.Position()
-	v := &View{Me: c, Ply: len(g.History()), Fog: fog, Legal: g.LegalMoves(), Rules: rules, pos: pos}
+	v := &View{Me: c, Ply: len(g.History()), Fog: fog, Sense: sense, Legal: g.LegalMoves(), Rules: rules, pos: pos}
 	if fog {
-		v.Seen = vision(&pos, c, sense)
+		v.Seen = vision(&pos, c, sense, lastArrival(g, c))
 	} else {
 		for i := range v.Seen {
 			v.Seen[i] = true
@@ -69,15 +74,67 @@ func viewOf(g *engine.Game, c engine.Color, fog bool, sense string, rules engine
 	return v
 }
 
+// lastArrival is the square c's most recent move landed on, or NoSquare.
+func lastArrival(g *engine.Game, c engine.Color) engine.Square {
+	h := g.History()
+	for i := len(h) - 1; i >= 0 && i >= len(h)-2; i-- {
+		if pc := g.Position().Board[h[i].Move.To]; pc.Is(c) {
+			return h[i].Move.To
+		}
+	}
+	return engine.NoSquare
+}
+
 // Senses are rule ideas that let a player see more through the fog.
-var Senses = []string{"", "attackers"}
+var Senses = []string{"", "attackers", "center", "centerPawn", "centerPeek"}
+
+// Outposts are the two centre squares of c's opponent's half: d5 and e5 for
+// White, d4 and e4 for Black.
+func Outposts(c engine.Color) [2]engine.Square {
+	if c == engine.White {
+		return [2]engine.Square{engine.SquareAt(3, 4), engine.SquareAt(4, 4)}
+	}
+	return [2]engine.Square{engine.SquareAt(3, 3), engine.SquareAt(4, 3)}
+}
+
+// OutpostHolder is c's piece that gives it the whole board under sense, or
+// NoSquare. arrived is the square c's last move landed on (for centerPeek).
+func OutpostHolder(pos *engine.Position, c engine.Color, sense string, arrived engine.Square) engine.Square {
+	for _, sq := range Outposts(c) {
+		pc := pos.Board[sq]
+		if !pc.Is(c) {
+			continue
+		}
+		switch sense {
+		case "center":
+			return sq
+		case "centerPawn":
+			if pc.Kind() == engine.Pawn {
+				return sq
+			}
+		case "centerPeek":
+			if sq == arrived {
+				return sq
+			}
+		}
+	}
+	return engine.NoSquare
+}
 
 // vision is what color c sees under fog, with sense:
 //   - "": what its pieces see, as on the site.
 //   - "attackers": also every enemy piece that attacks c's king, wherever it is.
-func vision(pos *engine.Position, c engine.Color, sense string) [64]bool {
+//   - "center": the whole board while any of c's pieces stands on an outpost
+//     (the centre of the opponent's half, see Outposts).
+//   - "centerPawn": the same, but only a pawn on an outpost counts.
+//   - "centerPeek": the whole board only on the turn right after a piece
+//     lands on an outpost: one look, then it must leave and come back.
+//
+// arrived is the square c's last move landed on.
+func vision(pos *engine.Position, c engine.Color, sense string, arrived engine.Square) [64]bool {
 	seen := pos.Vision(c)
-	if sense == "attackers" {
+	switch sense {
+	case "attackers":
 		if king := pos.KingSquare(c); king != engine.NoSquare {
 			for sq, pc := range pos.Board {
 				if !pc.Is(c.Other()) || seen[sq] {
@@ -89,6 +146,12 @@ func vision(pos *engine.Position, c engine.Color, sense string) [64]bool {
 						break
 					}
 				}
+			}
+		}
+	case "center", "centerPawn", "centerPeek":
+		if OutpostHolder(pos, c, sense, arrived) != engine.NoSquare {
+			for i := range seen {
+				seen[i] = true
 			}
 		}
 	}

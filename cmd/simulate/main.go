@@ -34,7 +34,7 @@ func main() {
 	bots := flag.String("bots", "ramesses,solomon", "bots to pair up, comma-separated: "+botList())
 	modes := flag.String("modes", "standard,backRow,battleship", "start modes, comma-separated")
 	guarded := flag.Bool("guarded", false, "Battleship setups keep the king walled in, as a careful player would, instead of anywhere")
-	sense := flag.String("sense", "", "rule ideas that show more through the fog, comma-separated, played alongside plain fog: attackers (the king sees every piece attacking it)")
+	sense := flag.String("sense", "", "rule ideas that show more through the fog, comma-separated, played alongside plain fog: attackers (the king sees every piece attacking it), center (a piece on the centre of the opponent's half, d5/e5 for White and d4/e4 for Black, sees the whole board), centerPawn (the same, pawns only), centerPeek (the same, only on the turn after the piece lands there)")
 	fog := flag.String("fog", "both", "on, off or both")
 	mods := flag.String("mods", "", "extra rules, comma-separated: checkmate, jumpKing, backPawns, hill")
 	workers := flag.Int("workers", runtime.NumCPU(), "games played at once")

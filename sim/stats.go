@@ -14,6 +14,7 @@ type Group struct {
 	Key                    string
 	Mode, Rules, White, Bk string
 	Fog                    bool
+	Sense                  string
 	N                      int
 	WhiteWins, BlackWins   int
 	Draws                  int
@@ -24,6 +25,20 @@ type Group struct {
 	firstCapture, captured int
 	contact, contacted     int
 	vision                 float64
+	// The centre senses: games where a side ever had the whole board, turns
+	// with it, all turns, which pieces gave it, and how the side that got it
+	// first did.
+	outpostGames, outpostTurns, allTurns int
+	outpostBy                            map[string]int
+	outpostRuns                          []int
+	firstHolderWins, firstHolderDraws    int
+}
+
+var senseNames = map[string]string{
+	"attackers":  "king sees attackers",
+	"center":     "centre vision",
+	"centerPawn": "centre vision (pawns only)",
+	"centerPeek": "centre vision (one look)",
 }
 
 func groupKey(r *Record) string {
@@ -55,9 +70,9 @@ func (s *Stats) Add(r *Record) {
 			mode += " (guarded setups)"
 		}
 		if r.Sense != "" {
-			mode += ", king sees " + r.Sense
+			mode += ", " + senseNames[r.Sense]
 		}
-		g = &Group{Key: k, Mode: mode, Rules: r.Rules, White: r.White, Bk: r.Black, Fog: r.Fog,
+		g = &Group{Key: k, Mode: mode, Rules: r.Rules, White: r.White, Bk: r.Black, Fog: r.Fog, Sense: r.Sense,
 			Methods: map[string]int{}, Killers: map[string]int{}}
 		s.groups[k] = g
 	}
@@ -91,6 +106,24 @@ func (s *Stats) Add(r *Record) {
 		g.contacted++
 	}
 	g.vision += (r.Vision[0] + r.Vision[1]) / 2
+	g.allTurns += r.Plies
+	if r.FirstOutpost >= 0 && r.FirstOutpostSide != "" {
+		g.outpostGames++
+		g.outpostTurns += r.OutpostTurns[0] + r.OutpostTurns[1]
+		if g.outpostBy == nil {
+			g.outpostBy = map[string]int{}
+		}
+		for k, n := range r.OutpostBy {
+			g.outpostBy[k] += n
+		}
+		g.outpostRuns = append(g.outpostRuns, r.OutpostRun)
+		switch {
+		case r.Result == "1/2-1/2":
+			g.firstHolderDraws++
+		case (r.Result == "1-0") == (r.FirstOutpostSide == "w"):
+			g.firstHolderWins++
+		}
+	}
 }
 
 // WhiteScore is White's average score (win 1, draw ½) and its 95% margin.
@@ -150,6 +183,14 @@ func (s *Stats) Print(w io.Writer) {
 			}
 			fmt.Fprintf(w, "\n")
 		}
+		if g.outpostGames > 0 {
+			runs := slices.Clone(g.outpostRuns)
+			slices.Sort(runs)
+			fmt.Fprintf(w, "  Centre vision: in %s of games, %s of all turns; given by %s; longest hold median %d turns, 90%% under %d\n",
+				pct(g.outpostGames, g.N), pct(g.outpostTurns, g.allTurns), counts(g.outpostBy, g.outpostTurns), runs[len(runs)/2], runs[len(runs)*9/10])
+			fmt.Fprintf(w, "  The side that got it first won %s of those games (drew %s)\n",
+				pct(g.firstHolderWins, g.outpostGames), pct(g.firstHolderDraws, g.outpostGames))
+		}
 		if g.Fog {
 			fmt.Fprintf(w, "  Board seen per turn: %.0f%%\n", 100*g.vision/float64(g.N))
 		}
@@ -157,7 +198,7 @@ func (s *Stats) Print(w io.Writer) {
 
 	var lines []string
 	for _, on := range s.sorted() {
-		if !on.Fog {
+		if !on.Fog || on.Sense != "" {
 			continue
 		}
 		off := s.groups[strings.Replace(on.Key, " fog ", " nofog ", 1)]
@@ -172,6 +213,25 @@ func (s *Stats) Print(w io.Writer) {
 	}
 	if len(lines) > 0 {
 		fmt.Fprintf(w, "\nWhat fog changes\n%s\n", strings.Join(lines, "\n"))
+	}
+
+	lines = nil
+	for _, with := range s.sorted() {
+		if with.Sense == "" {
+			continue
+		}
+		plain := s.groups[strings.Replace(with.Key, " fog+"+with.Sense+" ", " fog ", 1)]
+		if plain == nil {
+			continue
+		}
+		a, ma := with.WhiteScore()
+		b, mb := plain.WhiteScore()
+		lines = append(lines, fmt.Sprintf("  %s vs %s · %s · %s: White scores %.3f with it, %.3f with plain fog (difference %+.3f ± %.3f); games last %.0f vs %.0f plies; draws %s vs %s",
+			with.White, with.Bk, with.Mode, with.Rules, a, b, a-b, math.Sqrt(ma*ma+mb*mb), mean(with.Plies), mean(plain.Plies),
+			pct(with.Draws, with.N), pct(plain.Draws, plain.N)))
+	}
+	if len(lines) > 0 {
+		fmt.Fprintf(w, "\nWhat each rule idea changes, against plain fog\n%s\n", strings.Join(lines, "\n"))
 	}
 }
 

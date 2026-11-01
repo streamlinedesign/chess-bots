@@ -118,11 +118,47 @@ func TestSenseAttackers(t *testing.T) {
 	pos, _ := engine.ParseFEN("4k2r/8/8/q7/8/8/8/4K3 w - - 0 1")
 	a5, _ := engine.ParseSquare("a5")
 	h8, _ := engine.ParseSquare("h8")
-	if plain := vision(&pos, engine.White, ""); plain[a5] {
+	if plain := vision(&pos, engine.White, "", engine.NoSquare); plain[a5] {
 		t.Fatal("the white king alone shouldn't see a5")
 	}
-	seen := vision(&pos, engine.White, "attackers")
+	seen := vision(&pos, engine.White, "attackers", engine.NoSquare)
 	if !seen[a5] || seen[h8] {
 		t.Fatalf("attackers sense: a5 seen %v (want true), h8 seen %v (want false)", seen[a5], seen[h8])
+	}
+}
+
+// The centre senses give the whole board from d5/e5 (White) or d4/e4 (Black).
+func TestSenseCenter(t *testing.T) {
+	sq := func(s string) engine.Square { q, _ := engine.ParseSquare(s); return q }
+	count := func(v [64]bool) int {
+		n := 0
+		for _, ok := range v {
+			if ok {
+				n++
+			}
+		}
+		return n
+	}
+	// A white knight on d5 and a black pawn on e4.
+	pos, _ := engine.ParseFEN("4k3/8/8/3N4/4p3/8/8/4K3 w - - 0 1")
+	if n := count(vision(&pos, engine.White, "center", engine.NoSquare)); n != 64 {
+		t.Errorf("knight on d5, center: White sees %d squares, want 64", n)
+	}
+	if n := count(vision(&pos, engine.White, "centerPawn", engine.NoSquare)); n == 64 {
+		t.Error("centerPawn: a knight shouldn't count")
+	}
+	if n := count(vision(&pos, engine.Black, "centerPawn", engine.NoSquare)); n != 64 {
+		t.Errorf("pawn on e4, centerPawn: Black sees %d squares, want 64", n)
+	}
+	if n := count(vision(&pos, engine.White, "centerPeek", sq("d5"))); n != 64 {
+		t.Errorf("centerPeek right after landing: White sees %d squares, want 64", n)
+	}
+	if n := count(vision(&pos, engine.White, "centerPeek", sq("e1"))); n == 64 {
+		t.Error("centerPeek: a piece that stayed shouldn't give the board again")
+	}
+	// Black's own half doesn't count for White.
+	pos, _ = engine.ParseFEN("4k3/8/8/8/3N4/8/8/4K3 w - - 0 1")
+	if n := count(vision(&pos, engine.White, "center", engine.NoSquare)); n == 64 {
+		t.Error("a white piece on d4 shouldn't give White the board")
 	}
 }
