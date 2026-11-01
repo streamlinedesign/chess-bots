@@ -1,3 +1,8 @@
 *.jsonl
 /simulate
+/chess-bots
+.env
+.env.*
+!.env.example
+.dev-server
 .DS_Store

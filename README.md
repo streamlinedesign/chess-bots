@@ -18,6 +18,8 @@ make simulate                                  # plays until Ctrl-C, adding ever
 make simulate ARGS="-games 100000 -fog on"     # a set number of games
 make summary                                   # the summary of everything in games.jsonl so far
 go run ./cmd/simulate -h                       # every option
+make build                                     # the command as one binary, ./chess-bots
+make test                                      # all tests
 ```
 
 Without `make` (on Windows, say): `go run ./cmd/simulate -games 0`.
