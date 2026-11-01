@@ -62,6 +62,16 @@ type Record struct {
 	// (with fog), and FirstCapture the first ply with a capture; -1 if never.
 	FirstContact int `json:"firstContact"`
 	FirstCapture int `json:"firstCapture"`
+	// OutpostTurns is how many of White's and Black's turns they played with
+	// the whole board from an outpost (the centre senses), OutpostBy which
+	// kind of piece gave it, turn by turn, and OutpostRun the longest run of
+	// one side's turns in a row with it. FirstOutpost is the first ply on
+	// which a side had it (-1 if never), and FirstOutpostSide that side.
+	OutpostTurns     [2]int         `json:"outpostTurns,omitempty"`
+	OutpostBy        map[string]int `json:"outpostBy,omitempty"`
+	OutpostRun       int            `json:"outpostRun,omitempty"`
+	FirstOutpost     int            `json:"firstOutpost,omitempty"`
+	FirstOutpostSide string         `json:"firstOutpostSide,omitempty"`
 	// Vision is the share of the board each side saw, averaged over its turns.
 	Vision   [2]float64 `json:"vision"`
 	StartFEN string     `json:"start,omitempty"`
@@ -84,6 +94,9 @@ func RulesName(r engine.Rules) string {
 	}
 	if r.Hill {
 		parts = append(parts, "hill")
+	}
+	if r.CenterVision == engine.CenterOff {
+		parts = append(parts, "noCenter")
 	}
 	return strings.Join(parts, "+")
 }
@@ -110,7 +123,7 @@ func Play(c Config) (Record, error) {
 	}
 	rec := Record{
 		Seed: c.Seed, White: c.White, Black: c.Black, Mode: modeName(c.Mode), Guarded: c.Guarded && c.Mode == "battleship", Fog: c.Fog, Sense: c.Sense,
-		Rules: RulesName(c.Rules), FirstContact: -1, FirstCapture: -1,
+		Rules: RulesName(c.Rules), FirstContact: -1, FirstCapture: -1, FirstOutpost: -1,
 	}
 	if fen != engine.StartFEN {
 		rec.StartFEN = fen
@@ -123,6 +136,7 @@ func Play(c Config) (Record, error) {
 	var visionSum [2]int
 	var turns [2]int
 	var kingSteps [2]int
+	var run [2]int
 	for !g.Over() && len(g.History()) < maxPlies {
 		side := g.Turn()
 		v := viewOf(g, side, c.Fog, c.Sense, c.Rules)
@@ -137,6 +151,23 @@ func Play(c Config) (Record, error) {
 		}
 		visionSum[side] += n
 		turns[side]++
+		if c.Fog && strings.HasPrefix(c.Sense, "center") {
+			pos := g.Position()
+			if sq := OutpostHolder(&pos, side, c.Sense, lastArrival(g, side)); sq != engine.NoSquare {
+				rec.OutpostTurns[side]++
+				if rec.OutpostBy == nil {
+					rec.OutpostBy = map[string]int{}
+				}
+				rec.OutpostBy[string(pos.Board[sq].Kind().Letter())]++
+				run[side]++
+				rec.OutpostRun = max(rec.OutpostRun, run[side])
+				if rec.FirstOutpost < 0 {
+					rec.FirstOutpost, rec.FirstOutpostSide = v.Ply, side.String()
+				}
+			} else {
+				run[side] = 0
+			}
+		}
 
 		m := bots[side].Move(v)
 		pos := g.Position()
@@ -145,7 +176,8 @@ func Play(c Config) (Record, error) {
 		}
 		if pos.Board[m.To].Kind() == engine.King {
 			rec.Killer = string(pos.Board[m.From].Kind().Letter())
-			rec.KillerHidden = c.Fog && !pos.Vision(side.Other())[m.From]
+			loser := side.Other()
+			rec.KillerHidden = c.Fog && !vision(&pos, loser, c.Sense, lastArrival(g, loser))[m.From]
 		}
 		pm, err := g.PlayUCI(m.UCI())
 		if err != nil {

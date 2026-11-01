@@ -17,6 +17,10 @@ const ghostLife = 6
 // trades well, sees more of the board, and closes in on the enemy king.
 type hunter struct {
 	rng *rand.Rand
+	// sense is the vision rule in play, which the hunter knows and plays to.
+	sense string
+	// unaware ignores sense when weighing moves.
+	unaware bool
 	// wary also guards against what the fog might hide: lines into its
 	// king from squares it can't see.
 	wary   bool
@@ -84,8 +88,17 @@ const noise = 60
 
 func (h *hunter) Move(v *View) engine.Move {
 	h.remember(v)
+	if !h.unaware {
+		h.sense = v.Sense
+	}
 	pos := beliefPosition(v, &h.ghosts)
 	target := h.target(v)
+	// Told the king is attacked by nothing it knows of: the attacker is in
+	// the fog, so a move that leaves the king where it is likely loses it.
+	hiddenThreat := false
+	if king := pos.KingSquare(v.Me); v.Danger && king != engine.NoSquare {
+		hiddenThreat = !pos.Attacked(king, v.Me.Other())
+	}
 	best, bestScore := v.Legal[0], -1<<62
 	for _, m := range v.Legal {
 		victim := v.Board[m.To]
@@ -93,7 +106,10 @@ func (h *hunter) Move(v *View) engine.Move {
 			return m
 		}
 		after := pos.Apply(m)
-		score := h.worstReply(&after, v.Me) + h.outlook(&after, v.Me, target)*10 + h.rng.IntN(noise)
+		score := h.worstReply(&after, v.Me) + h.outlook(&after, v.Me, target, m.To)*10 + h.rng.IntN(noise)
+		if hiddenThreat && v.Board[m.From].Kind() != engine.King {
+			score -= kingValue / 2
+		}
 		if score > bestScore {
 			best, bestScore = m, score
 		}
@@ -147,8 +163,8 @@ func material(p *engine.Position, me engine.Color) int {
 
 // outlook rewards seeing more of the board and bringing pieces closer to
 // where the enemy king is believed to be.
-func (h *hunter) outlook(p *engine.Position, me engine.Color, target engine.Square) int {
-	seen := p.Vision(me)
+func (h *hunter) outlook(p *engine.Position, me engine.Color, target, arrived engine.Square) int {
+	seen := vision(p, me, h.sense, arrived)
 	s := 0
 	for _, ok := range seen {
 		if ok {

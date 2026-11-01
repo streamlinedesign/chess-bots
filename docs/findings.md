@@ -75,3 +75,48 @@ Rule: under fog, a player also sees every enemy piece that attacks their king, w
 - **White's edge doesn't move.** Standard stays even; Battleship stays about 0.56 for White.
 
 What it costs in play: attacking the king now gives your piece away, so the sneak attack stops being the main weapon and forks, double attacks and boxing the king in take over. If that feels too strong, middle grounds to test next: show only the direction of the threat, show it only for pieces within two squares, or keep the current red ring (danger without the location) but also for unseen attackers.
+
+## Idea tested: centre vision
+
+Rule: under fog, a player who has a piece on the centre of the opponent's half (d5 or e5 for White, d4 or e4 for Black) sees the whole board for as long as it stays there. Three versions (`-sense center,centerPawn,centerPeek`):
+
+- **any piece** (`center`): any piece on those squares.
+- **pawns only** (`centerPawn`): only a pawn counts.
+- **one look** (`centerPeek`): any piece, but only on the turn right after it lands there; to look again it must leave and come back.
+
+274,000 more games on 1 November 2026, all with the new pawn vision (a pawn on its starting rank sees two squares ahead): the simulator's bots (270,000; Standard, Back row and guarded Battleship) and Ramesses II vs Vercingetorix (4,000, Standard). `wary` and `hunter` know the rule and play for it (they count the squares it would show them, like any other vision). `unaware` is `wary` without that knowledge, which measures how much knowing the rule is worth. The site's bots don't know it either. Standard, mirror matches of `wary` unless noted:
+
+| Standard | Plain fog | Any piece | Pawns only | One look | No fog |
+|---|---|---|---|---|---|
+| Games where someone gets the whole board | — | 98% | 63% | 98% | — |
+| Turns played with the whole board | — | 56% | 18% | 14% | — |
+| Longest hold in a game (median) | — | 17 turns | 10 turns | 1 | — |
+| wary vs greedy (better bot's score) | 0.68 | 0.87 | 0.69 | 0.74 | 0.99 |
+| wary (knows the rule) vs unaware | 0.51 | 0.72 | 0.60 | 0.49 | 0.50 |
+| Median length (plies) | 44 | 54 | 45 | 49 | 107 |
+| Draws | 7% | 1% | 5% | 14% | 62% |
+| Kings eaten by a piece the loser couldn't see | 76% | 65% | 70% | 60% | — |
+| Site bots: games where it triggers | — | 86% | 50% | 87% | — |
+
+Back row and guarded Battleship look the same. White's edge doesn't move in any version (Battleship stays about 0.55-0.59 for White).
+
+- **Any piece is too strong.** Someone has it in nearly every game, and more than half of all turns are played without fog. The game becomes a race to d5/e5: knowing the rule alone wins 72% against the same bot that doesn't, and pieces park there (median 17 turns, 1 in 10 games over 35). Knights do most of the parking after pawns: they're hard for pawns to chase off and nothing sees them coming.
+- **Pawns only is the sweet spot.** It shows up in about 6 games in 10 and covers about 1 turn in 5, so it's an event, not the normal state. Length, draws and skill gap stay where plain fog has them, so it doesn't flatten the game. It gives a real plan to play for (knowing the rule is worth 0.60, about the edge of a better player) and a real fight: a pawn on d5 can be chased by c6/e6 pawns or traded off, and a pawn can't step back to hide and come again. Parking does happen (median 10 turns), but holding a pawn there is ordinary good chess (space in the centre), and the opponent knows exactly which square to attack.
+- **One look is safe but flat.** Knowing the rule is worth nothing (0.49), so nobody plays for it; bots step in and out, and draws double from the back-and-forth repetition. It adds luck more than strategy.
+
+**Recommendation: pawns only.** If it feels too strong in real games, the next tweak to test is making the opponent see the holding pawn's square (it's marked anyway) or ending the vision while the pawn is attacked.
+
+## The site's rules from 0.2.0
+
+fow-chess now plays centre vision for any piece in every game, and tells a player their king is attacked even when the attacker is hidden (not from where). The simulator plays the same by default (`-mods noCenter` turns centre vision off), and every bot's view carries the warning; `hunter` and `wary` move the king when it comes from the fog. 32,000 games, Standard, `wary` and `greedy`:
+
+| | Site rules | Without centre vision |
+|---|---|---|
+| wary vs greedy (better bot's score) | 0.88 | 0.71 |
+| White's score (wary mirror) | 0.51 | 0.49 |
+| Median length (plies) | 61 | 58 |
+| Draws | 2% | 12% |
+| Kings eaten by a piece the loser couldn't see | 70% | 82% |
+| Times the losing king moved | 5.7 | 4.4 |
+
+The hidden-attack warning gives kings a chance to run (they move more), and centre vision makes the better bot win more and draws rarer, as in the earlier test.

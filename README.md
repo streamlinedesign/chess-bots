@@ -4,7 +4,7 @@ Bots for **Eat the King**, the fog-of-war capture-the-king game from [fow-chess]
 
 - `engine/`: the rules (moves, fog of war vision, king capture, setups' starting positions), copied from `server/engine` in fow-chess.
 - `bots/`: the site's four bots, weakest first: `rex` (Rex inutilis, random), `vercingetorix` (greedy), `ramesses` (Ramesses II, a short search) and `solomon` (a deeper search that values vision). Copied from `server/bots` in fow-chess.
-- `sim/`: plays games and records them. It adds four simpler bots of its own: `random`; `greedy`, which eats a king it sees and otherwise takes what it can without losing more; `hunter`, which looks two plies ahead on what it sees plus where it last saw enemy pieces; and `wary`, a `hunter` that also keeps lines into its king from the fog covered. A new bot is one entry in `sim.Bots`.
+- `sim/`: plays games and records them. It adds four simpler bots of its own: `random`; `greedy`, which eats a king it sees and otherwise takes what it can without losing more; `hunter`, which looks two plies ahead on what it sees plus where it last saw enemy pieces; `wary`, a `hunter` that also keeps lines into its king from the fog covered; and `unaware`, a `wary` that doesn't play for a `-sense` rule idea. A new bot is one entry in `sim.Bots`.
 - `cmd/simulate/`: the command.
 
 Every bot gets only what a player gets: its fogged board and its legal moves.
@@ -27,8 +27,8 @@ A run cycles through every pairing of `-bots` (each as White and as Black), ever
 - `-bots ramesses,solomon` (the default) picks who plays. `solomon` plays about 10 games a second per core; the simulator's own bots play hundreds.
 - `-fog on|off|both` (default both).
 - `-guarded` makes Battleship setups careful: the king on its back two rows with every line out of it blocked by its own pieces. Otherwise Battleship and Back row setups are random, and random Battleship setups hand out a lot of first-move wins.
-- `-sense attackers` also plays each fog game with a rule idea: the king sees every enemy piece attacking it.
-- `-mods checkmate,jumpKing,backPawns,hill` plays the Mods page rules.
+- `-sense attackers,center,centerPawn,centerPeek` also plays each fog game with rule ideas: `attackers`, the king sees every enemy piece attacking it; `center`, a piece on d5/e5 (White) or d4/e4 (Black) sees the whole board; `centerPawn`, the same for pawns only; `centerPeek`, the whole board only on the turn after the piece lands there. The `unaware` bot is `wary` that doesn't play for these.
+- `-mods checkmate,jumpKing,backPawns,hill,noCenter` plays the Mods page rules. By default games use the site's rules: Eat the King with centre vision for any piece, and each bot is told when its king is attacked, even from the fog.
 - `-moves=false` leaves the moves out, for very long runs: a game with moves is about 500 bytes, so ten million games is about 5 GB.
 
 ## What a game record holds
